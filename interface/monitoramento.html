@@ -1,0 +1,57 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Monitoramento de Suínos</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Interface de Controle - Suinocultura</h1>
+  <div class="container">
+
+    <!-- Bloco Ambiente -->
+    <div class="bloco">
+      <div class="titulo">Ambiente</div>
+      <label>Temperatura Máxima:</label>
+      <input type="number" id="tempMax" placeholder="Ex: 30">
+      <button onclick="publicarTemperaturaLimite()">Definir Temperatura Máxima</button>
+      <p>Temperatura Atual: <span id="tempAtual">--</span>°C</p>
+      <canvas id="gaugeTemp" width="350" height="175"></canvas>
+    </div>
+
+    <!-- Bloco Controle -->
+    <div class="bloco">
+      <div class="titulo">Controle</div>
+      <label>Horário Ração 1:</label>
+      <input type="time" id="horaRacao1">
+      <button onclick="publicarHorario('racao1')">Definir Horário 1</button>
+
+      <label>Horário Ração 2:</label>
+      <input type="time" id="horaRacao2">
+      <button onclick="publicarHorario('racao2')">Definir Horário 2</button>
+
+      <button onclick="acionarManual('racao')">Acionar Ração Manual</button>
+
+      <label>Horário Limpeza:</label>
+      <input type="time" id="horaLimpeza">
+      <button onclick="publicarHorario('limpeza')">Definir Horário Limpeza</button>
+
+      <button onclick="acionarManual('limpeza')">Acionar Limpeza Manual</button>
+    </div>
+
+    <!-- Bloco Porcos -->
+    <div class="bloco">
+      <div class="titulo">Porcos</div>
+      <table>
+        <thead>
+          <tr><th>Porco</th><th>Peso (kg)</th><th>Data</th></tr>
+        </thead>
+        <tbody id="tabelaPorcos"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
