@@ -36,32 +36,32 @@ TaskHandle_t hx711_task_handle;
 //
 void task_wifi_mqtt(void *params) {
     if (wifi_connect() != 0) {
-        printf("Falha na inicialização Wi-Fi.\n");
+        printf("Falha na inicialização Wi-Fi. \n");
         vTaskDelete(NULL);
     }
 
     while (true) {
-        printf("Tentando conectar ao Wi-Fi...\n");
+        printf("Tentando conectar ao Wi-Fi... \n");
         if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000) == 0) {
-            printf("✅ Wi-Fi conectado!\n");
+            printf("Wi-Fi conectado! \n");
             wifi_conectado = true;
             break;
         }
-        printf("Falha na conexão Wi-Fi. Tentando novamente...\n");
+        printf("Falha na conexão Wi-Fi. Tentando novamente... \n");
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 
     mqtt_do_connect();
 
     while (!mqtt_is_connected()) {
-        printf("Aguardando conexão MQTT...\n");
+        printf("Aguardando conexão MQTT... \n");
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 
-    printf("✅ Conectado ao MQTT!\n");
+    printf("Conectado ao MQTT! \n");
     mqtt_conectado = true;
 
-    // Resume tarefas dependentes
+    // REABILIDA TAREFAS DEPENDENTES DO MQTT
     vTaskResume(ntp_task_handle);
     vTaskResume(aht10_task_handle);
     vTaskResume(controle_task_handle);
@@ -74,18 +74,18 @@ void task_wifi_mqtt(void *params) {
 }
 
 
-// Tarefa: sincronização NTP periódica
+// TAREFA -- SINSCRONIZAÇÃO NTP
 void task_ntp_sync(void *params) {
-    // Começa suspensa
+    // COMEÇA SUSPENSA
     vTaskSuspend(NULL);
 
     ntp_state = ntp_init();
     if (!ntp_state) {
-        printf("❌ Falha ao inicializar NTP\n");
+        printf("Falha ao inicializar NTP \n");
         vTaskDelete(NULL);
     }
 
-    printf("Iniciando sincronização NTP...\n");
+    printf("Iniciando sincronização NTP... \n");
     start_ntp_request(ntp_state);
 
     while (true) {
@@ -97,9 +97,9 @@ void task_ntp_sync(void *params) {
 }
 
 
-// Tarefa: leitura sensor AHT10 e publicação MQTT
+// TAREFA --- LEITURA SENSOR AHT10 E PUBLICAÇÃO MQTT
 void task_aht10(void *params) {
-    // Começa suspensa
+    // COMEÇA SUSPENSA
     vTaskSuspend(NULL);
 
     float temperatura, umidade;
@@ -127,9 +127,9 @@ void task_aht10(void *params) {
 }
 
 
-// Tarefa: controle automático ração e limpeza
+// TAREFA --- VERIFICAÇÃO DO TEMPO E CONTROLE AUTOMÁTICO DO SISTEMA
 void task_controle_tempo(void *params) {
-    // Começa suspensa
+    // COMEÇA SUSPENSA
     vTaskSuspend(NULL);
 
     while (1) {
@@ -138,8 +138,10 @@ void task_controle_tempo(void *params) {
     }
 }
 
+
+// TAREFA --- LEITURA DA BALANÇA
 void task_hx711(void *params) {
-    // Começa suspensa
+    // COMEÇA SUSPENSA
     vTaskSuspend(NULL);
 
     while (1) {
@@ -152,25 +154,24 @@ int main() {
     stdio_init_all();
     sleep_ms(2000);
 
+    // INICIALIZAÇÃO DOS PINOS E SENSORES
     aht10_init();
     acionadores_setup();
     balancas_setup();
     rfid_init();
-
     servo_init(RACAO_PIN);
     servo_set_angle(RACAO_PIN, 180);
 
-    // Cria as tarefas com prioridade padrão (1)
+    // CRIA TAREFAS
     xTaskCreate(task_wifi_mqtt, "WiFi/MQTT", 4096, NULL, 1, NULL);
     xTaskCreate(task_ntp_sync, "NTP", 2048, NULL, 1, &ntp_task_handle);
     xTaskCreate(task_aht10, "AHT10", 2048, NULL, 1, &aht10_task_handle);    // alterado, ver se nao vai causar erro
     xTaskCreate(task_controle_tempo, "Controle", 2048, NULL, 1, &controle_task_handle);
     xTaskCreate(task_hx711, "HX711", 2048, NULL, 1, &hx711_task_handle);
 
-    // Inicia o scheduler FreeRTOS
+    // INICIA AGENDADOR
     vTaskStartScheduler();
 
-    // Se chegar aqui, falhou
     printf("Erro: scheduler não iniciado!\n");
     while (1) {
         tight_loop_contents();

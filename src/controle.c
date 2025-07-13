@@ -1,167 +1,183 @@
 #include "controle.h"
 
-#include "hardware/gpio.h"
-#include "hardware/rtc.h"
-#include "pico/util/datetime.h"
-#include "configura_geral.h"
-#include "lib/pico_servo.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
 #include "pico/stdlib.h"
+#include "hardware/gpio.h"
+#include "hardware/rtc.h"
+#include "pico/util/datetime.h"
 
-// MUDAR ACIONADOR DE RAÇÃO PARA SERVO MOTOR
+#include "lib/pico_servo.h"
+#include "configura_geral.h"
 
-// === Variáveis de horário programado ===
+// --- VARIÁVEIS DE CONTROLE
+// HORÁRIO RAÇÃO -- 6H E 18H
 int hora_racao_1 = 6, hora_racao_2 = 18;
 int minuto_racao_1 = 0, minuto_racao_2 = 0;
 
+// HORÁRIO LIMPEZA -- 12H
 int hora_limpeza = 12;
 int minuto_limpeza = 0;
 
-// === Flags de controle diário ===
+// CONTROLE DE ACIONAMENTO AUTOMÁTICO
 static bool racao1_acionada_hoje, racao2_acionada_hoje = false;
 static bool limpeza_acionada_hoje = false;
 
+// CONTROLE DE ACIONAMENTO MANUAL
 static bool racao_acionada_manual = false;
 static bool limpeza_acionada_manual = false;
 
-// === Variáveis para controle do tempo de acionamento (não bloqueante) ===
+// VARIÁVEIS DE  CONTROLE DE TEMPO -- RAÇÃO
 static bool racao_em_execucao = false;
 static absolute_time_t racao_acionamento_inicio;
 
+// VARIÁVEIS DE  CONTROLE DE TEMPO -- LIMPEZA
 static bool limpeza_em_execucao = false;
 static absolute_time_t limpeza_acionamento_inicio;
 
+// VARIÁVEIS DE CONTROLE DO VENTILADOR
 float temp_maxima = 30.f;
 static bool ventilador_ligado = false;
 
+
+// --- FUNÇÕES DE CONTROLE
+
+// ACIONAMENTO DO VENTILADOR
 void controle_ventilador(float temperatura) {
+    //SE TEMPERATURA FOR MAIOR OU IGUAL A TEMPERATURA MÁXIMA E VENTILADOR NÃO ESTIVER LIGADO
     if (temperatura >= temp_maxima && !ventilador_ligado) {
         gpio_put(VENTILADOR_PIN, 1);
         ventilador_ligado = true;
-        printf("[AHT10] 🚨 Temperatura alta (%.1f°C). Ventilador LIGADO.\n", temperatura);
-    } else if (temperatura <= (temp_maxima - 2) && ventilador_ligado) {
+        printf("Temperatura alta (%.1f°C). Ventilador LIGADO \n", temperatura);
+    } 
+    // SE TEMPERATURA ESTIVER 2 GRAUS ABAIXO DA TEMPERATURA MÁXIMA E VENTILADOR ESTIVER LIGADO
+    else if (temperatura <= (temp_maxima - 2) && ventilador_ligado) {
         gpio_put(VENTILADOR_PIN, 0);
         ventilador_ligado = false;
-        printf("[AHT10] ✅ Temperatura normalizada (%.1f°C). Ventilador DESLIGADO.\n", temperatura);
+        printf("Temperatura normalizada (%.1f°C). Ventilador DESLIGADO \n", temperatura);
     }
 }
 
+// CONTROLE HORÁRIO RAÇÃO
 void atualizar_horario_racao(const char *momento, int hora, int minuto) {
+    // SE MOMENTO FOR RAÇÃO 1, ATUALIZA HORÁRIO
     if (strcmp(momento, "racao_1") == 0) {
         hora_racao_1 = hora;
         minuto_racao_1 = minuto;
     }
+    // SE MOMENTO FOR RAÇÃO 2, ATUALIZA HORÁRIO
     else if (strcmp(momento, "racao_2") == 0) {
         hora_racao_2 = hora;
         minuto_racao_2 = minuto;
     }
     
-    printf("⏰ Novo horário da ração: %02d:%02d\n", hora, minuto);
+    printf("Novo horário da ração: %02d:%02d \n", hora, minuto);
 }
 
+// CONTROLE HORÁRIO LIMPEZA
 void atualizar_horario_limpeza(int hora, int minuto) {
     hora_limpeza = hora;
     minuto_limpeza = minuto;
-    printf("⏰ Novo horário da limpeza: %02d:%02d\n", hora, minuto);
+    printf("Novo horário da limpeza: %02d:%02d \n", hora, minuto);
 }
 
-// MUDAR ACIONADOR DE RAÇÃO PARA SERVO MOTOR
+// CONTROLE MANUAL DE RAÇÃO
 void acionar_racao_manual() {
+    // SE DISPENSER NÃO ESTIVER ACIONADO, LIBERA RAÇÃO 
     if (!racao_em_execucao) {
-        printf("\n[MQTT] Acionando dispenser de ração!\n");
+        printf("Acionando dispenser de ração! \n");
         servo_set_angle(RACAO_PIN, 90);
-        //gpio_put(RACAO_PIN, 1);
-        racao_acionamento_inicio = get_absolute_time();
+        racao_acionamento_inicio = get_absolute_time();     // ARMAZENA TEMPO DE ACIONAMENTO
         racao_em_execucao = true;
         racao_acionada_manual = true;
     } else {
-        printf("[MQTT] ⚠️ Ração já em execução.\n");
+        printf("Ração já em execução \n");
     }
 }
 
+//CONTROLE MANUAL DE LIMPEZA
 void acionar_limpeza_manual() {
+    // SE LIMPEZA NÃO ESTIVER ATIVADO, ACIONA SISTEMA
     if (!limpeza_em_execucao) {
-        printf("\n[MQTT] Acionando irrigadores de limpeza!\n");
+        printf("Acionando irrigadores de limpeza! \n");
         gpio_put(LIMPEZA_PIN, 1);
-        limpeza_acionamento_inicio = get_absolute_time();
+        limpeza_acionamento_inicio = get_absolute_time();   // ARMAZENA TEMPO DE ACIONAMENTO
         limpeza_em_execucao = true;
         limpeza_acionada_manual = true;
     } else {
-        printf("[MQTT] ⚠️ Limpeza já em execução.\n");
+        printf("Limpeza já em execução \n");
     }
 }
 
-// Verifica se é hora de acionar a ração e gerencia desligamento após 5s
+// VERIFICA SE É HORA DE ACIONAR RAÇÃO E GERENCIA DESLIGAMENTO APÓS 5S
 void verificar_acionamento_racao(const datetime_t *t) {
+    // VERIFICA SE RTC ESTÁ FUNCIONANDO
     if (!rtc_running()) return;
 
-    // Acionamento automático programado: horário 1
+    // ACIONAMENTO AUTOMÁTICO PROGRAMADO - HORÁRIO 1
     if (t->hour == hora_racao_1 && t->min == minuto_racao_1 && !racao1_acionada_hoje && !racao_em_execucao) {
-        printf("\n[RTC] HORA DA PRIMEIRA RAÇÃO! Acionando dispenser.\n");
-        servo_set_angle(RACAO_PIN, 90);
-        //gpio_put(RACAO_PIN, 1);
-        racao_acionamento_inicio = get_absolute_time();
+        printf("HORA DA PRIMEIRA RAÇÃO! Acionando dispenser \n");
+        servo_set_angle(RACAO_PIN, 90);                     // ABRE DISPENSER
+        racao_acionamento_inicio = get_absolute_time();     // ARMAZENA TEMPO DE ACIONAMENTO
         racao_em_execucao = true;
         racao1_acionada_hoje = true;
     }
 
-    // Acionamento automático programado: horário 2
+    // ACIONAMENTO AUTOMÁTICO PROGRAMADO - HORÁRIO 2
     if (t->hour == hora_racao_2 && t->min == minuto_racao_2 && !racao2_acionada_hoje && !racao_em_execucao) {
-        printf("\n[RTC] HORA DA SEGUNDA RAÇÃO! Acionando dispenser.\n");
-        servo_set_angle(RACAO_PIN, 90);
-        //gpio_put(RACAO_PIN, 1);
-        racao_acionamento_inicio = get_absolute_time();
+        printf("\n[RTC] HORA DA SEGUNDA RAÇÃO! Acionando dispenser \n");
+        servo_set_angle(RACAO_PIN, 90);                     // ABRE DISPENSER
+        racao_acionamento_inicio = get_absolute_time();     // ARMAZENA TEMPO DE ACIONAMENTO
         racao_em_execucao = true;
         racao2_acionada_hoje = true;
     }
 
-    // Desliga o dispenser após 5 segundos
+    // DESLIGA DISPENSER APÓS 5 SEGUNDOS
     if (racao_em_execucao) {
         if (absolute_time_diff_us(racao_acionamento_inicio, get_absolute_time()) > 5 * 1000000) {
-            servo_set_angle(RACAO_PIN, 180);
-            //gpio_put(RACAO_PIN, 0);
+            servo_set_angle(RACAO_PIN, 180);                // FECHA DISPENSER
             racao_em_execucao = false;
             racao_acionada_manual = false;
-            printf("[RTC] Dispenser de ração desligado.\n");
+            printf("Dispenser de ração desligado \n");
         }
     }
 
-    // Reseta flag no início de um novo dia
+    // RESETA FLAGS DEPOIS DA MEIA NOITE
     if (t->hour == 0 && t->min == 0) {
         racao1_acionada_hoje = false;
         racao2_acionada_hoje = false;
-        printf("\n[RTC] Novo dia para ração!\n");
     }
 }
 
-// Verifica se é hora de acionar a limpeza e gerencia desligamento após 5s
+// VERIFICA SE É HORA DE ACIONAR LIMPEZA E GERENCIA DESLIGAMENTO APÓS 5S
 void verificar_acionamento_limpeza(const datetime_t *t) {
+    // VERIFICA SE RTC ESTÁ FUNCIONANDO
     if (!rtc_running()) return;
 
-    // Acionamento automático programado
+    // ACIONAMENTO AUTOMÁTICO PROGRAMADO
     if (t->hour == hora_limpeza && t->min == minuto_limpeza && !limpeza_acionada_hoje && !limpeza_em_execucao) {
-        printf("\n[RTC] HORA DA LIMPEZA! Acionando irrigadores.\n");
+        printf("HORA DA LIMPEZA! Acionando irrigadores \n");
         gpio_put(LIMPEZA_PIN, 1);
         limpeza_acionamento_inicio = get_absolute_time();
         limpeza_em_execucao = true;
         limpeza_acionada_hoje = true;
     }
 
-    // Desliga irrigadores após 5 segundos
+    // DESLIGA SISTEMA APÓS 5 SEGUNDOS
     if (limpeza_em_execucao) {
         if (absolute_time_diff_us(limpeza_acionamento_inicio, get_absolute_time()) > 5 * 1000000) {
             gpio_put(LIMPEZA_PIN, 0);
             limpeza_em_execucao = false;
             limpeza_acionada_manual = false;
-            printf("[RTC] Irrigadores desligados.\n");
+            printf("Irrigadores desligados \n");
         }
     }
 
-    // Reseta flag no início de um novo dia
+    // RESETA FLAGS DEPOIS DA MEIA NOITE
     if (t->hour == 0 && t->min == 0 && limpeza_acionada_hoje && !limpeza_em_execucao) {
         limpeza_acionada_hoje = false;
-        printf("\n[RTC] Novo dia para limpeza!\n");
     }
 }
+

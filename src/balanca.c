@@ -38,11 +38,9 @@ bool hx711_is_ready() {
 
 // FUÇÃO DE LER O SENSOR DE CARGA
 long hx711_read() {
-    while (!hx711_is_ready()) {
-        sleep_us(10);  // EVITA SOBRECARGA DE CPU
-    }
+    while (!hx711_is_ready()) sleep_us(10);
 
-    long value = 0;
+    int32_t  value = 0;
     for (int i = 0; i < 24; i++) {
         gpio_put(HX711_CLK, 1);
         sleep_us(1);
@@ -51,15 +49,15 @@ long hx711_read() {
         sleep_us(1);
     }
 
-    // PULSO EXTRA PARA DEFINIR ESCALA
+    // Gera 1 pulso para ganho 128 (padrão)
     gpio_put(HX711_CLK, 1);
     sleep_us(1);
     gpio_put(HX711_CLK, 0);
     sleep_us(1);
 
-    // AJUSTE DE SINAL
+    // Ajusta sinal negativo se necessário
     if (value & 0x800000) {
-        value |= 0xFF000000;
+        value |= 0xFF000000; // Corrige o sinal para 32 bits
     }
 
     return value;
@@ -79,7 +77,7 @@ void coleta_peso() {
             coletando = true;
             somatorio = 0;
             num_amostras = 0;
-            printf("🐖 Porco detectado na balança\n");
+            printf("Porco detectado na balança\n");
         }
 
         if (num_amostras < NUM_MAX_AMOSTRAS) {
@@ -126,7 +124,7 @@ void coleta_peso() {
 
             if (mqtt_is_connected()) {
                 mqtt_do_publish(mqtt_get_client(), TOPICO_PORCO_BALANCA, payload, NULL);
-                printf("📤 Peso do %s enviado: %.2f kg em %s\n", animal, media, data);
+                printf("Peso do %s enviado: %.2f kg em %s\n", animal, media, data);
             }
         }
     }
@@ -170,7 +168,7 @@ void teste () {
 
     if (mqtt_is_connected()) {
         mqtt_do_publish(mqtt_get_client(), TOPICO_PORCO_BALANCA, payload, NULL);
-        printf("📤 Peso do %s enviado: %.2f kg em %s\n", animal, media, data);
+        printf("Peso do %s enviado: %.2f kg em %s\n", animal, media, data);
         printf("%s", payload);
     }
     

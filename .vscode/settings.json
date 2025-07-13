@@ -46,6 +46,7 @@
         "wifi.h": "c",
         "mqtt.h": "c",
         "stdbool.h": "c",
-        "pico_servo.h": "c"
+        "pico_servo.h": "c",
+        "stdio.h": "c"
     }
 }

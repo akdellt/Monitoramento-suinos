@@ -1,179 +1,94 @@
-#include <string.h>
-#include <time.h>
-
+#include <stdio.h>
 #include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
-#include "hardware/i2c.h"
 
-#include "lib/mfrc522.h"
-#include "lib/pico_servo.h"
+// Definições dos pinos do HX711
+#define HX711_DOUT 9
+#define HX711_SCK  8
 
-#include "inc/rtc_ntp.h"
-#include "inc/aht10.h"
-#include "inc/balanca.h"
-#include "inc/setup.h"
-#include "inc/mqtt_client.h"
-#include "inc/controle.h"
+// Fator de calibração — ajuste conforme sua célula de carga
+#define SCALE_FACTOR 2280.0f
 
-#include "configura_geral.h"
-#include "credenciais.h"
+// Inicializa pinos do HX711
+void hx711_initt(uint dout_pin, uint sck_pin) {
+    gpio_init(dout_pin);
+    gpio_set_dir(dout_pin, GPIO_IN);
 
-#include "FreeRTOS.h"
-#include "task.h"
-
-// Variável global do estado NTP
-static NTP_T *ntp_state = NULL;
-
-volatile bool wifi_conectado = false;
-volatile bool mqtt_conectado = false;
-
-TaskHandle_t ntp_task_handle;
-TaskHandle_t aht10_task_handle;
-TaskHandle_t controle_task_handle;
-TaskHandle_t hx711_task_handle;
-
-
-//
-void task_wifi_mqtt(void *params) {
-    if (wifi_connect() != 0) {
-        printf("Falha na inicialização Wi-Fi.\n");
-        vTaskDelete(NULL);
-    }
-
-    while (true) {
-        printf("Tentando conectar ao Wi-Fi...\n");
-        if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000) == 0) {
-            printf("✅ Wi-Fi conectado!\n");
-            wifi_conectado = true;
-            break;
-        }
-        printf("Falha na conexão Wi-Fi. Tentando novamente...\n");
-        vTaskDelay(pdMS_TO_TICKS(5000));
-    }
-
-    mqtt_do_connect();
-
-    while (!mqtt_is_connected()) {
-        printf("Aguardando conexão MQTT...\n");
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-
-    printf("✅ Conectado ao MQTT!\n");
-    mqtt_conectado = true;
-
-    // Resume tarefas dependentes
-    vTaskResume(ntp_task_handle);
-    vTaskResume(aht10_task_handle);
-    vTaskResume(controle_task_handle);
-    vTaskResume(controle_task_handle);
-
-    while (true) {
-        cyw43_arch_poll();
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+    gpio_init(sck_pin);
+    gpio_set_dir(sck_pin, GPIO_OUT);
+    gpio_put(sck_pin, 0);
 }
 
+// Lê dados brutos do HX711 (24 bits)
+int32_t hx711_read_raw(uint dout, uint sck) {
+    while (gpio_get(dout));  // Espera até DOUT ficar LOW
 
-// Tarefa: sincronização NTP periódica
-void task_ntp_sync(void *params) {
-    // Começa suspensa
-    vTaskSuspend(NULL);
-
-    ntp_state = ntp_init();
-    if (!ntp_state) {
-        printf("❌ Falha ao inicializar NTP\n");
-        vTaskDelete(NULL);
+    int32_t count = 0;
+    for (int i = 0; i < 24; i++) {
+        gpio_put(sck, 1);
+        sleep_us(1);
+        count = count << 1;
+        gpio_put(sck, 0);
+        sleep_us(1);
+        if (gpio_get(dout)) count++;
     }
 
-    printf("Iniciando sincronização NTP...\n");
-    start_ntp_request(ntp_state);
+    // Pulso extra para ganho de 128
+    gpio_put(sck, 1);
+    sleep_us(1);
+    gpio_put(sck, 0);
+    sleep_us(1);
 
-    while (true) {
-        if (absolute_time_diff_us(get_absolute_time(), ntp_state->ntp_test_time) < 0) {
-            start_ntp_request(ntp_state);
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    // Conversão para signed
+    if (count & 0x800000) count |= 0xFF000000;
+
+    return count;
 }
 
-
-// Tarefa: leitura sensor AHT10 e publicação MQTT
-void task_aht10(void *params) {
-    // Começa suspensa
-    vTaskSuspend(NULL);
-
-    float temperatura, umidade;
-    char payload_buffer[30];
-
-    while (1) {
-        aht10_trigger_measurement();
-
-        if (aht10_read(&temperatura, &umidade)) {
-            if (mqtt_is_connected()) {  // MELHOR NÃO TIRAR SENÃO O DIABO FICA ESTOURANDO O BUFFER
-                sprintf(payload_buffer, "%.1f", temperatura);
-                mqtt_do_publish(mqtt_get_client(), TOPICO_TEMPERATURA, payload_buffer, NULL);
-                vTaskDelay(pdMS_TO_TICKS(500)); // tempo para enviar com segurança
-
-                sprintf(payload_buffer, "%.1f", umidade);
-                mqtt_do_publish(mqtt_get_client(), TOPICO_UMIDADE, payload_buffer, NULL);
-                vTaskDelay(pdMS_TO_TICKS(500));
-            }
-
-            controle_ventilador(temperatura);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(3000)); // aguarda 3s entre leituras
+// Lê média de N leituras para reduzir ruído
+int32_t hx711_read_average(uint dout, uint sck, int samples) {
+    int64_t sum = 0;
+    for (int i = 0; i < samples; i++) {
+        sum += hx711_read_raw(dout, sck);
     }
+    return (int32_t)(sum / samples);
 }
-
-
-// Tarefa: controle automático ração e limpeza
-void task_controle_tempo(void *params) {
-    // Começa suspensa
-    vTaskSuspend(NULL);
-
-    while (1) {
-        rtc_loop_tick();
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void task_hx711(void *params) {
-    // Começa suspensa
-    vTaskSuspend(NULL);
-
-    while (1) {
-        teste();
-    }
-}
-
 
 int main() {
     stdio_init_all();
-    sleep_ms(2000);
+    hx711_initt(HX711_DOUT, HX711_SCK);
 
-    aht10_init();
-    acionadores_setup();
-    balancas_setup();
-    rfid_init();
+    sleep_ms(2000);  // Aguarda conexão serial
 
-    servo_init(RACAO_PIN);
-    servo_set_angle(RACAO_PIN, 180);
+    printf("===== Calibração da Balança =====\n");
+    printf("Remova qualquer peso da balança.\n");
+    printf("Aguardando para medir o OFFSET (tara)...\n");
+    sleep_ms(5000);
 
-    // Cria as tarefas com prioridade padrão (1)
-    xTaskCreate(task_wifi_mqtt, "WiFi/MQTT", 4096, NULL, 1, NULL);
-    xTaskCreate(task_ntp_sync, "NTP", 2048, NULL, 1, &ntp_task_handle);
-    //xTaskCreate(task_aht10, "AHT10", 2048, NULL, 1, &aht10_task_handle);    // alterado, ver se nao vai causar erro
-    xTaskCreate(task_controle_tempo, "Controle", 2048, NULL, 1, &controle_task_handle);
-    xTaskCreate(task_hx711, "HX711", 2048, NULL, 1, &hx711_task_handle);
+    int32_t offset = hx711_read_average(HX711_DOUT, HX711_SCK, 10);
+    printf("OFFSET (tara) = %ld\n", offset);
 
-    // Inicia o scheduler FreeRTOS
-    vTaskStartScheduler();
+    printf("\nColoque um peso conhecido na balança (ex: 2.00 kg)\n");
+    sleep_ms(10000);
 
-    // Se chegar aqui, falhou
-    printf("Erro: scheduler não iniciado!\n");
+    int32_t leitura_com_peso = hx711_read_average(HX711_DOUT, HX711_SCK, 10);
+    printf("Leitura com peso: %ld\n", leitura_com_peso);
+
+    float peso_real = 0.395; // <-- ALTERE AQUI conforme o peso que colocou
+    float scale = (float)(leitura_com_peso - offset) / peso_real;
+
+    printf("\n===== Resultado =====\n");
+    printf("OFFSET (tara)..............: %ld\n", offset);
+    printf("LEITURA COM PESO...........: %ld\n", leitura_com_peso);
+    printf("PESO REAL...................: %.3f kg\n", peso_real);
+    printf("SCALE FACTOR (fator escala): %.3f\n", scale);
+    printf("===============================\n");
+
+    // Leitura contínua já calibrada
     while (1) {
-        tight_loop_contents();
+        int32_t leitura = hx711_read_average(HX711_DOUT, HX711_SCK, 5);
+        float peso = (float)(leitura - offset) / scale;
+        printf("Peso atual: %.3f kg\n", peso);
+        sleep_ms(1000);
     }
 
     return 0;

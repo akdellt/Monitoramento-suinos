@@ -33,12 +33,16 @@ extern int minuto_limpeza;
 
 // REFRIGERAÇÃO
 extern float temp_maxima;
-#define VENTILADOR_PIN 12
-#define LIMPEZA_PIN 13
+#define VENTILADOR_PIN 3
+#define LIMPEZA_PIN 4
+
+// MUDAR PINOS
+#define STBY_PIN 4 //REMOVER ISSO AQUI
 
 // DEFINIÇÃO DOS PINOS DO SENSOR DE PESO HX711
-#define HX711_DATA 17  
-#define HX711_CLK  18  
+#define HX711_DATA 9
+#define HX711_CLK  8  
+
 #define PESO_MIN_KG 5.0f
 #define NUM_MAX_AMOSTRAS 50
 #define SCALE_FACTOR 2100.0 / 5000.0 // CALIBRAR PARA 50/100KG

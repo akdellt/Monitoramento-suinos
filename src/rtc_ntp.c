@@ -3,15 +3,15 @@
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
-#include "hardware/rtc.h"
 #include "pico/util/datetime.h"
+#include "hardware/rtc.h"
 
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
-#include "configura_geral.h"
 #include "inc/controle.h"
+#include "configura_geral.h"
 
 typedef struct NTP_T_ {
     ip_addr_t ntp_server_address;
@@ -21,42 +21,43 @@ typedef struct NTP_T_ {
     alarm_id_t ntp_resend_alarm;
 } NTP_T;
 
+// 
 static void ntp_result(NTP_T* state, int status, time_t *result) {
     if (status == 0 && result) {
         struct tm *utc = gmtime(result);
-        printf("✅ NTP response: %02d/%02d/%04d %02d:%02d:%02d\n",
+        printf("NTP response: %02d/%02d/%04d %02d:%02d:%02d \n",
                utc->tm_mday, utc->tm_mon + 1, utc->tm_year + 1900,
                utc->tm_hour, utc->tm_min, utc->tm_sec);
 
-        // Sempre inicializa o RTC (caso não esteja rodando)
+        // SEMPRE INICIALIZA RTC CASO NÃO ESTEJA RODANDO
         if (!rtc_running()) {
-            printf("⚙️ RTC não estava rodando, iniciando...\n");
+            printf("RTC não estava rodando, iniciando... \n");
             rtc_init();
         }
 
-        // Start on Friday 5th of June 2020 15:45:00
+        // COMEÇA NA SEXTA FEIRA, 5 DE JUNHO DE 2020 ÀS 15:45:00
         datetime_t t = {
             .year  = utc->tm_year + 1900,
             .month = utc->tm_mon + 1,
-            .day   = utc->tm_mday, // 0 is Sunday, so 1 is Monday
+            .day   = utc->tm_mday, 
             .dotw  = utc->tm_wday,
             .hour  = utc->tm_hour,
             .min   = utc->tm_min,
             .sec   = utc->tm_sec
         };
         rtc_set_datetime(&t);
-        printf("⏰ RTC sincronizado com NTP\n");
+        printf("RTC sincronizado com NTP \n");
     } else {
-        printf("⚠️ Erro ao processar resposta do NTP\n");
+        printf("Erro ao processar resposta do NTP \n");
     }
 
-    // Cancelar alarme de timeout se necessário
+    // CANCELAR ALARME SE NECESSÁRIO
     if (state->ntp_resend_alarm > 0) {
         cancel_alarm(state->ntp_resend_alarm);
         state->ntp_resend_alarm = 0;
     }
 
-    // Atualiza timestamp para próxima sincronização
+    // ATUALIZA TIMESTAMP PARA PRÓXIMA SICRONIZAÇÃO
     state->ntp_test_time = make_timeout_time_ms(NTP_TEST_TIME);
     state->dns_request_sent = false;
 }
@@ -64,7 +65,7 @@ static void ntp_result(NTP_T* state, int status, time_t *result) {
 
 static int64_t ntp_failed_handler(alarm_id_t id, void *user_data);
 
-// Make an NTP request
+// REALIZA SOLICITAÇÃO NTP
 static void ntp_request(NTP_T *state) {
     // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
     // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
@@ -83,20 +84,20 @@ static void ntp_request(NTP_T *state) {
 static int64_t ntp_failed_handler(alarm_id_t id, void *user_data)
 {
     NTP_T* state = (NTP_T*)user_data;
-    printf("ntp request failed\n");
+    printf("Falha na solicitação ntp \n");
     ntp_result(state, -1, NULL);
     return 0;
 }
 
-// Call back with a DNS result
+// CALLBACK COM RESULTADO DO DNS
 static void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     NTP_T *state = (NTP_T*)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        printf("ntp address %s\n", ip4addr_ntoa(ipaddr));
+        printf("Endereço ntp %s\n", ip4addr_ntoa(ipaddr));
         ntp_request(state);
     } else {
-        printf("ntp dns request failed\n");
+        printf("Falha na solicitação do dns ntp \n");
         ntp_result(state, -1, NULL);
     }
 }
@@ -117,13 +118,13 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         time_t epoch = seconds_since_1970 - (3 * 3600);
         ntp_result(state, 0, &epoch) ;
     } else {
-        printf("invalid ntp response\n");
+        printf("Resposta ntp inválida \n");
         ntp_result(state, -1, NULL);
     }
     pbuf_free(p);
 }
 
-// Perform initialisation
+// INICIALIZAÇÃO DO NTP
 NTP_T* ntp_init(void) {
     NTP_T *state = calloc(1, sizeof(NTP_T));
     if (!state) {
@@ -161,20 +162,21 @@ void start_ntp_request(NTP_T *state) {
     }
 }
 
-// Chamada periódica para verificar horário
+// CHAMADA PERIÓDICA PARA VERIFICAR TEMPO
 void rtc_loop_tick() { // mudar de nome talvez
     if (rtc_running()) {
         datetime_t t;
         rtc_get_datetime(&t);
 
-        // Debug: mostra hora atual
+        // MOSTRA HORA ATUAL -- TIRAR
         char datetime_buf[64];
         datetime_to_str(datetime_buf, sizeof(datetime_buf), &t);
         printf("⏰ RTC: %s\n", datetime_buf);
 
+        // CHAMA FUNÇÕES DE VERIFICAR TEMPOS DE ACIONAMENTO
         verificar_acionamento_racao(&t);
         verificar_acionamento_limpeza(&t);
     } else {
-        printf("RTC não está rodando!\n");
+        printf("RTC não está rodando! \n");
     }
 }

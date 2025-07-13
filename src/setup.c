@@ -2,6 +2,9 @@
 #include "configura_geral.h"
 
 void acionadores_setup() {
+    gpio_init(STBY_PIN); 
+    gpio_set_dir(STBY_PIN, GPIO_OUT);
+
     gpio_init(VENTILADOR_PIN);
     gpio_set_dir(VENTILADOR_PIN, GPIO_OUT);
     gpio_put(VENTILADOR_PIN, 0);
@@ -10,9 +13,9 @@ void acionadores_setup() {
     gpio_set_dir(LIMPEZA_PIN, GPIO_OUT);
     gpio_put(LIMPEZA_PIN, 0);
 
-    gpio_init(RACAO_PIN);
-    gpio_set_dir(RACAO_PIN, GPIO_OUT);
-    gpio_put(RACAO_PIN, 0);
+    //gpio_init(RACAO_PIN);
+    //gpio_set_dir(RACAO_PIN, GPIO_OUT);
+    //gpio_put(RACAO_PIN, 0);
 }
 
 void balancas_setup(){
