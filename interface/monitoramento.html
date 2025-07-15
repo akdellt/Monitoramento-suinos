@@ -7,45 +7,42 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Interface de Controle - Suinocultura</h1>
+  <h1>Interface de Controle -- Chiqueiro</h1>
   <div class="container">
 
-    <!-- Bloco Ambiente -->
     <div class="bloco">
       <div class="titulo">Ambiente</div>
       <label>Temperatura Máxima:</label>
       <input type="number" id="tempMax" placeholder="Ex: 30">
-      <button onclick="publicarTemperaturaLimite()">Definir Temperatura Máxima</button>
+      <button onclick="publicarTemperaturaLimite()">Definir temperatura máxima</button>
       <p>Temperatura Atual: <span id="tempAtual">--</span>°C</p>
       <canvas id="gaugeTemp" width="350" height="175"></canvas>
     </div>
 
-    <!-- Bloco Controle -->
     <div class="bloco">
       <div class="titulo">Controle</div>
       <label>Horário Ração 1:</label>
       <input type="time" id="horaRacao1">
-      <button onclick="publicarHorario('racao1')">Definir Horário 1</button>
+      <button onclick="publicarHorario('racao1')">Definir horário 1</button>
 
       <label>Horário Ração 2:</label>
       <input type="time" id="horaRacao2">
-      <button onclick="publicarHorario('racao2')">Definir Horário 2</button>
+      <button onclick="publicarHorario('racao2')">Definir horário 2</button>
 
-      <button onclick="acionarManual('racao')">Acionar Ração Manual</button>
+      <button onclick="acionarManual('racao')">Acionar ração manual</button>
 
       <label>Horário Limpeza:</label>
       <input type="time" id="horaLimpeza">
-      <button onclick="publicarHorario('limpeza')">Definir Horário Limpeza</button>
+      <button onclick="publicarHorario('limpeza')">Definir horário limpeza</button>
 
-      <button onclick="acionarManual('limpeza')">Acionar Limpeza Manual</button>
+      <button onclick="acionarManual('limpeza')">Acionar limpeza manual</button>
     </div>
 
-    <!-- Bloco Porcos -->
     <div class="bloco">
       <div class="titulo">Porcos</div>
       <table>
         <thead>
-          <tr><th>Porco</th><th>Peso (kg)</th><th>Data</th></tr>
+          <tr><th>Animal</th><th>Peso</th><th>Data</th></tr>
         </thead>
         <tbody id="tabelaPorcos"></tbody>
       </table>

@@ -7,7 +7,7 @@
 #define HIVEMQ_PORT 1883
 #define MQTT_CLIENT_ID  "PicoW_Monitoramento_Suinos"
 
-#define WIFI_SSID "Sergio Fibra 2.4G"
-#define WIFI_PASS "26563275"
+#define WIFI_SSID "ssid"   // MUDAR NOME
+#define WIFI_PASS "password"            // MUDAR SENHA
 
 #endif

@@ -6,8 +6,8 @@
 #include "hardware/i2c.h"
 
 #include "lib/mfrc522.h"
-#include "lib/pico_servo.h"
 
+#include "inc/pico_servo.h"
 #include "inc/rtc_ntp.h"
 #include "inc/aht10.h"
 #include "inc/balanca.h"
@@ -145,7 +145,7 @@ void task_hx711(void *params) {
     vTaskSuspend(NULL);
 
     while (1) {
-        teste();
+        coleta_peso();
     }
 }
 
@@ -153,6 +153,7 @@ void task_hx711(void *params) {
 int main() {
     stdio_init_all();
     sleep_ms(2000);
+    printf("Teste");
 
     // INICIALIZAÇÃO DOS PINOS E SENSORES
     aht10_init();

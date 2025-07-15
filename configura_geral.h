@@ -11,20 +11,18 @@
 #include "pico/mutex.h"
 
 #define AHT10_ADDR 0x38
-#define I2C_PORT i2c0
-
-#define I2C_PORT i2c0
-#define PIN_SDA 0
-#define PIN_SCL 1
+#define I2C_PORT i2c1
+#define PIN_SDA 2 // 0
+#define PIN_SCL 3 // 1
 
 //ALIMENTAÇÃO
 // DEFINIÇÃO DOS VALORES DOS REGISTROS DE PWM PARA CÁLCULO DO DUTY CYCLE 
 #define PWM_WRAP 24999  // 50HZ
 #define PWM_CLK_DIV 100 // VALOR PARA DAR PERÍODO CERTO
-#define SERVO_MIN_US 600     // Posição 0° no SG90
-#define SERVO_MAX_US 2400    // Posição 180° no SG90
+#define SERVO_MIN_US 600     // Posição 0° 
+#define SERVO_MAX_US 2400    // Posição 180°
 
-#define RACAO_PIN 2
+#define RACAO_PIN 0
 extern int hora_racao;
 extern int minuto_racao;
 
@@ -33,8 +31,8 @@ extern int minuto_limpeza;
 
 // REFRIGERAÇÃO
 extern float temp_maxima;
-#define VENTILADOR_PIN 3
-#define LIMPEZA_PIN 4
+#define VENTILADOR_PIN 28 //3
+#define LIMPEZA_PIN 4 //4
 
 // MUDAR PINOS
 #define STBY_PIN 4 //REMOVER ISSO AQUI
@@ -43,10 +41,10 @@ extern float temp_maxima;
 #define HX711_DATA 9
 #define HX711_CLK  8  
 
-#define PESO_MIN_KG 5.0f
+#define PESO_MIN_KG 0.200f
 #define NUM_MAX_AMOSTRAS 50
-#define SCALE_FACTOR 2100.0 / 5000.0 // CALIBRAR PARA 50/100KG
-#define OFFSET 0.0f                     // VALOR INICIAL QUANDO BALANÇA ESTÁ NO ZERO
+#define SCALE_FACTOR 180789.219f // CALIBRAR PARA 50/100KG
+#define OFFSET 6695.0f                     // VALOR INICIAL QUANDO BALANÇA ESTÁ NO ZERO
 
 #define TEMPO_CONEXAO 2000
 #define TEMPO_MENSAGEM 2000

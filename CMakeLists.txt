@@ -50,7 +50,7 @@ add_executable(monitoramento_suinos
         src/setup.c
         src/controle.c
         lib/mfrc522.c
-        lib/pico_servo.c
+        src/pico_servo.c  
 
         ${FREERTOS_KERNEL_PATH}/tasks.c
         ${FREERTOS_KERNEL_PATH}/timers.c

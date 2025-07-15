@@ -25,7 +25,7 @@ typedef struct NTP_T_ {
 static void ntp_result(NTP_T* state, int status, time_t *result) {
     if (status == 0 && result) {
         struct tm *utc = gmtime(result);
-        printf("NTP response: %02d/%02d/%04d %02d:%02d:%02d \n",
+        printf("NTP resposta: %02d/%02d/%04d %02d:%02d:%02d \n",
                utc->tm_mday, utc->tm_mon + 1, utc->tm_year + 1900,
                utc->tm_hour, utc->tm_min, utc->tm_sec);
 
@@ -157,7 +157,7 @@ void start_ntp_request(NTP_T *state) {
     if (err == ERR_OK) {
         ntp_request(state); // Se o IP já estiver em cache, faz a requisição NTP
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS significa que o callback será chamado
-        printf("\nFalha na requisição DNS\n");
+        printf("Falha na requisição DNS\n");
         ntp_result(state, -1, NULL);
     }
 }
@@ -169,9 +169,9 @@ void rtc_loop_tick() { // mudar de nome talvez
         rtc_get_datetime(&t);
 
         // MOSTRA HORA ATUAL -- TIRAR
-        char datetime_buf[64];
-        datetime_to_str(datetime_buf, sizeof(datetime_buf), &t);
-        printf("⏰ RTC: %s\n", datetime_buf);
+        //char datetime_buf[64];
+        //datetime_to_str(datetime_buf, sizeof(datetime_buf), &t);
+        //printf("RTC: %s\n", datetime_buf);
 
         // CHAMA FUNÇÕES DE VERIFICAR TEMPOS DE ACIONAMENTO
         verificar_acionamento_racao(&t);

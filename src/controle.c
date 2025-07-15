@@ -9,7 +9,7 @@
 #include "hardware/rtc.h"
 #include "pico/util/datetime.h"
 
-#include "lib/pico_servo.h"
+#include "inc/pico_servo.h"
 #include "configura_geral.h"
 
 // --- VARIÁVEIS DE CONTROLE

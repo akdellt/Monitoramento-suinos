@@ -1,13 +1,9 @@
 const client = mqtt.connect('ws://broker.hivemq.com:8000/mqtt');
 
 client.on('connect', () => {
-  console.log('Conectado ao broker MQTT');
   client.subscribe('suinosmonit/ambiente/temperatura');
   client.subscribe('suinosmonit/porcos/peso');
 });
-
-
-
 
 let tempMax = 30;
 let tempAtual = 0;
@@ -45,16 +41,13 @@ const gaugeChart = new Chart(ctxGauge, {
 
 
 client.on('message', (topic, message) => {
-  console.log('Mensagem recebida:', topic, message.toString());
   if (topic === 'suinosmonit/ambiente/temperatura') {
     const temp = parseFloat(message.toString());
     document.getElementById('tempAtual').textContent = temp.toFixed(1);
     tempMax = parseFloat(document.getElementById('tempMax').value) || 30;
 
-    // Atualiza o gráfico de gauge
     gaugeChart.data.datasets[0].data = [temp, Math.max(0, tempMax - temp)];
 
-    // Muda cor dinamicamente
     let cor = 'green';
     if (temp >= tempMax) cor = 'red';
     else if (temp >= tempMax * 0.7) cor = 'orange';
@@ -91,7 +84,7 @@ function publicarHorario(tipo) {
   }
 
   if (valor) {
-    client.publish(topico, valor); // Exemplo: "14:30"
+    client.publish(topico, valor);
   }
 }
 
