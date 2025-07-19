@@ -3,7 +3,7 @@
 
 #include "pico_servo.h"
 
-// Função para inicializar o PWM
+// FUNÇÃO PARA INICIALIZAR PWM
 void servo_init(uint pin) {
     gpio_set_function(pin, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(pin);
@@ -13,6 +13,7 @@ void servo_init(uint pin) {
     pwm_init(slice_num, &config, true);
 }
 
+// CONVERTE ÂNGULO DE MOVIMENTO EM TEMPO PARA ACIONAMENTO DO SERVO
 void servo_set_angle(uint pin, uint8_t angle) {
     if (angle > 180) angle = 180;
 

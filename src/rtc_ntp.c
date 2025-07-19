@@ -67,10 +67,6 @@ static int64_t ntp_failed_handler(alarm_id_t id, void *user_data);
 
 // REALIZA SOLICITAÇÃO NTP
 static void ntp_request(NTP_T *state) {
-    // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
-    // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
-    // these calls are a no-op and can be omitted, but it is a good practice to use them in
-    // case you switch the cyw43_arch type later.
     cyw43_arch_lwip_begin();
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     uint8_t *req = (uint8_t *) p->payload;
@@ -115,7 +111,7 @@ static void ntp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_ad
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
         uint32_t seconds_since_1900 = seconds_buf[0] << 24 | seconds_buf[1] << 16 | seconds_buf[2] << 8 | seconds_buf[3];
         uint32_t seconds_since_1970 = seconds_since_1900 - NTP_DELTA;
-        time_t epoch = seconds_since_1970 - (3 * 3600);
+        time_t epoch = seconds_since_1970 - (3 * 3600); // CORREÇÃO DO FUSO HORÁRIO
         ntp_result(state, 0, &epoch) ;
     } else {
         printf("Resposta ntp inválida \n");
@@ -143,35 +139,29 @@ NTP_T* ntp_init(void) {
 
 
 void start_ntp_request(NTP_T *state) {
-    if (state->dns_request_sent) return; // Requisição já em progresso
+    if (state->dns_request_sent) return; 
 
-    // Agenda um alarme para o caso da requisição falhar (timeout)
     state->ntp_resend_alarm = add_alarm_in_ms(NTP_RESEND_TIME, ntp_failed_handler, state, true);
 
-    // Inicia a busca pelo DNS do servidor NTP
+    // BUSCA POR SERVIDOR NTP
     cyw43_arch_lwip_begin();
     int err = dns_gethostbyname(NTP_SERVER, &state->ntp_server_address, ntp_dns_found, state);
     cyw43_arch_lwip_end();
 
     state->dns_request_sent = true;
     if (err == ERR_OK) {
-        ntp_request(state); // Se o IP já estiver em cache, faz a requisição NTP
-    } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS significa que o callback será chamado
+        ntp_request(state); 
+    } else if (err != ERR_INPROGRESS) { 
         printf("Falha na requisição DNS\n");
         ntp_result(state, -1, NULL);
     }
 }
 
 // CHAMADA PERIÓDICA PARA VERIFICAR TEMPO
-void rtc_loop_tick() { // mudar de nome talvez
+void rtc_loop_tick() { 
     if (rtc_running()) {
         datetime_t t;
         rtc_get_datetime(&t);
-
-        // MOSTRA HORA ATUAL -- TIRAR
-        //char datetime_buf[64];
-        //datetime_to_str(datetime_buf, sizeof(datetime_buf), &t);
-        //printf("RTC: %s\n", datetime_buf);
 
         // CHAMA FUNÇÕES DE VERIFICAR TEMPOS DE ACIONAMENTO
         verificar_acionamento_racao(&t);

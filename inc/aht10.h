@@ -5,6 +5,6 @@
 
 void aht10_init();
 void aht10_trigger_measurement();
-bool aht10_read(float *temperature, float *humidity);
+bool aht10_read(float *temperature);
 
 #endif

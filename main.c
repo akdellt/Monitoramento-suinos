@@ -102,27 +102,23 @@ void task_aht10(void *params) {
     // COMEÇA SUSPENSA
     vTaskSuspend(NULL);
 
-    float temperatura, umidade;
+    float temperatura;
     char payload_buffer[30];
 
     while (1) {
         aht10_trigger_measurement();
 
-        if (aht10_read(&temperatura, &umidade)) {
-            if (mqtt_is_connected()) {  // MELHOR NÃO TIRAR SENÃO O DIABO FICA ESTOURANDO O BUFFER
+        if (aht10_read(&temperatura)) {
+            if (mqtt_is_connected()) { 
                 sprintf(payload_buffer, "%.1f", temperatura);
                 mqtt_do_publish(mqtt_get_client(), TOPICO_TEMPERATURA, payload_buffer, NULL);
-                vTaskDelay(pdMS_TO_TICKS(500)); // tempo para enviar com segurança
-
-                sprintf(payload_buffer, "%.1f", umidade);
-                mqtt_do_publish(mqtt_get_client(), TOPICO_UMIDADE, payload_buffer, NULL);
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
 
             controle_ventilador(temperatura);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(3000)); // aguarda 3s entre leituras
+        vTaskDelay(pdMS_TO_TICKS(3000)); // AGUARDA 3 SEGUNDOS ENTRE AS LEITURAS PARA NÃO SOBRECARREGAR
     }
 }
 
@@ -134,7 +130,7 @@ void task_controle_tempo(void *params) {
 
     while (1) {
         rtc_loop_tick();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1000));    // VERIFICAÇÃO DE HORÁRIO A CADA 1 SEGUNDO
     }
 }
 
@@ -146,6 +142,7 @@ void task_hx711(void *params) {
 
     while (1) {
         coleta_peso();
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -153,30 +150,25 @@ void task_hx711(void *params) {
 int main() {
     stdio_init_all();
     sleep_ms(2000);
-    printf("Teste");
 
     // INICIALIZAÇÃO DOS PINOS E SENSORES
     aht10_init();
     acionadores_setup();
     balancas_setup();
     rfid_init();
-    servo_init(RACAO_PIN);
-    servo_set_angle(RACAO_PIN, 180);
 
     // CRIA TAREFAS
     xTaskCreate(task_wifi_mqtt, "WiFi/MQTT", 4096, NULL, 1, NULL);
     xTaskCreate(task_ntp_sync, "NTP", 2048, NULL, 1, &ntp_task_handle);
-    xTaskCreate(task_aht10, "AHT10", 2048, NULL, 1, &aht10_task_handle);    // alterado, ver se nao vai causar erro
+    xTaskCreate(task_aht10, "AHT10", 2048, NULL, 1, &aht10_task_handle);
     xTaskCreate(task_controle_tempo, "Controle", 2048, NULL, 1, &controle_task_handle);
     xTaskCreate(task_hx711, "HX711", 2048, NULL, 1, &hx711_task_handle);
 
     // INICIA AGENDADOR
     vTaskStartScheduler();
 
-    printf("Erro: scheduler não iniciado!\n");
     while (1) {
         tight_loop_contents();
     }
-
     return 0;
 }

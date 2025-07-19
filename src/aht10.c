@@ -22,7 +22,7 @@ void aht10_trigger_measurement() {
     sleep_ms(80);
 }
 
-bool aht10_read(float *temperature, float *humidity) {
+bool aht10_read(float *temperature) {
     uint8_t raw_data[6];
     i2c_read_blocking(I2C_PORT, AHT10_ADDR, raw_data, 6, false);
 
@@ -30,10 +30,8 @@ bool aht10_read(float *temperature, float *humidity) {
         return false;
     }
 
-    uint32_t raw_humidity = ((raw_data[1] << 12) | (raw_data[2] << 4) | (raw_data[3] >> 4));
     uint32_t raw_temperature = (((raw_data[3] & 0x0F) << 16) | (raw_data[4] << 8) | raw_data[5]);
 
-    *humidity = (raw_humidity / 1048576.0f) * 100.0f;
     *temperature = (raw_temperature / 1048576.0f) * 200.0f - 50.0f;
 
     return true;

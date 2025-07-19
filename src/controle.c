@@ -38,7 +38,7 @@ static bool limpeza_em_execucao = false;
 static absolute_time_t limpeza_acionamento_inicio;
 
 // VARIÁVEIS DE CONTROLE DO VENTILADOR
-float temp_maxima = 30.f;
+float temp_maxima = 25.f;
 static bool ventilador_ligado = false;
 
 

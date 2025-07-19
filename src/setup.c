@@ -1,10 +1,8 @@
 #include "pico/stdlib.h"
 #include "configura_geral.h"
+#include "pico_servo.h"
 
 void acionadores_setup() {
-    //gpio_init(STBY_PIN); 
-    //gpio_set_dir(STBY_PIN, GPIO_OUT);
-
     gpio_init(VENTILADOR_PIN);
     gpio_set_dir(VENTILADOR_PIN, GPIO_OUT);
     gpio_put(VENTILADOR_PIN, 0);
@@ -12,6 +10,9 @@ void acionadores_setup() {
     gpio_init(LIMPEZA_PIN);
     gpio_set_dir(LIMPEZA_PIN, GPIO_OUT);
     gpio_put(LIMPEZA_PIN, 0);
+
+    servo_init(RACAO_PIN);
+    servo_set_angle(RACAO_PIN, 180);
 }
 
 void balancas_setup(){
